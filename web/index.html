@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- La página no puede conectarse a ningún servidor: todo ocurre en tu dispositivo. -->
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<title>Protocolo de transporte ASMAC</title>
+<meta name="description" content="Llena el protocolo de seguridad en el traslado (CNAR) de ASMAC desde tu lista de Scouts en Excel. Todo ocurre en tu dispositivo.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Protocolo de transporte ASMAC</h1>
+  <p>Llena el formato oficial <em>“Información para integrar el protocolo de seguridad en el traslado”</em> (CNAR) y descárgalo listo en Word.</p>
+  <div class="privacidad" role="note">
+    <strong>🔒 Tus datos no salen de este dispositivo.</strong>
+    La página no envía nada a ningún servidor: el Excel se lee y el documento se arma aquí mismo, en tu navegador.
+    Tu avance se guarda solo en este navegador para que no lo pierdas; puedes borrarlo cuando quieras con
+    <button type="button" id="borrar-todo" class="link">Borrar todo</button>.
+  </div>
+</header>
+
+<main>
+  <!-- 1. Evento -->
+  <section class="card">
+    <h2><span class="num">1</span> Datos del evento</h2>
+    <div class="grid">
+      <label class="span2">Nombre del evento * <input data-k="evento.nombre" required></label>
+      <label class="span2">Lugar del evento <input data-k="evento.lugar"></label>
+      <label>Provincia <input data-k="evento.provincia"></label>
+      <label>Grupo(s) <input data-k="evento.grupos" placeholder="Ej. Grupo 22"></label>
+    </div>
+
+    <h3>Coordinador de seguridad <small>(NO asiste al evento)</small></h3>
+    <div class="grid">
+      <label class="span2">Nombre completo <input data-k="evento.coordNombre"></label>
+      <label>Cargo <input data-k="evento.coordCargo"></label>
+      <label>Teléfono local <input data-k="evento.coordTelLocal" type="tel"></label>
+      <label>Celular <input data-k="evento.coordTelCelular" type="tel"></label>
+    </div>
+
+    <h3>Enlace de seguridad <small>(SÍ asiste al evento)</small></h3>
+    <div class="grid">
+      <label class="span2">Nombre completo <input data-k="evento.enlaceNombre"></label>
+      <label>Cargo <input data-k="evento.enlaceCargo"></label>
+      <label>Celular 1 <input data-k="evento.enlaceCel1" type="tel"></label>
+      <label>Celular 2 <input data-k="evento.enlaceCel2" type="tel"></label>
+    </div>
+
+    <h3>Salida y regreso</h3>
+    <div class="grid">
+      <label>Fecha y hora de salida <input data-k="evento.salidaFechaHora" placeholder="dd/mm/aaaa hh:mm"></label>
+      <label>Llegada estimada al evento <input data-k="evento.salidaLlegada" placeholder="dd/mm/aaaa hh:mm"></label>
+      <label>Fecha y hora de regreso <input data-k="evento.regresoFechaHora" placeholder="dd/mm/aaaa hh:mm"></label>
+      <label>Llegada estimada a tu ciudad <input data-k="evento.regresoLlegada" placeholder="dd/mm/aaaa hh:mm"></label>
+      <label class="span2">Punto de salida <input data-k="evento.salidaPunto"></label>
+      <label class="span2">Punto de llegada (regreso) <input data-k="evento.regresoPunto"></label>
+    </div>
+  </section>
+
+  <!-- 2. Transporte -->
+  <section class="card">
+    <h2><span class="num">2</span> Medio de transporte</h2>
+    <p class="ayuda">Marca todos los que usarán. Solo se piden los datos del medio que elijas.</p>
+    <div class="medios">
+      <label class="check"><input type="checkbox" data-medio="particular"> Particular (autos)</label>
+      <label class="check"><input type="checkbox" data-medio="contratado"> Contratado</label>
+      <label class="check"><input type="checkbox" data-medio="publico"> Público (autobús)</label>
+      <label class="check"><input type="checkbox" data-medio="aereo"> Aéreo</label>
+    </div>
+
+    <div class="sub" data-para="particular" hidden>
+      <h3>Vehículos particulares</h3>
+      <div id="vehiculos" class="vehiculos"></div>
+      <button type="button" id="agregar-vehiculo" class="sec">+ Agregar vehículo</button>
+    </div>
+
+    <div class="sub" data-para="contratado" hidden>
+      <h3>Transporte contratado</h3>
+      <div class="grid">
+        <label class="span2">Razón social de la empresa <input data-k="contratado.razonSocial"></label>
+        <label class="span2">Números de contacto de la empresa <input data-k="contratado.contactos"></label>
+        <label>Marca y modelo de la unidad <input data-k="contratado.marcaModelo"></label>
+        <label>Placas <input data-k="contratado.placas"></label>
+        <label class="span2">Nombre del operador <input data-k="contratado.operador"></label>
+      </div>
+      <p class="ayuda">¿Tienes en tu poder…? (deberás anexarlo en imagen al enviar el protocolo)</p>
+      <div class="sinos">
+        <div class="sino" data-k="contratado.chkContrato">Contrato del servicio de transporte</div>
+        <div class="sino" data-k="contratado.chkFeMecanica">Fe mecánica de la unidad</div>
+        <div class="sino" data-k="contratado.chkSeguroViajero">Seguro del viajero</div>
+        <div class="sino" data-k="contratado.chkLicencia">Copia de licencia del conductor</div>
+        <div class="sino" data-k="contratado.chkTarjeta">Copia de tarjeta de circulación</div>
+      </div>
+    </div>
+
+    <div class="sub" data-para="publico" hidden>
+      <h3>Transporte público (autobús)</h3>
+      <div class="grid">
+        <label>Línea de autobuses (salida) <input data-k="publico.lineaSalida"></label>
+        <label>Línea de autobuses (regreso) <input data-k="publico.lineaRegreso"></label>
+        <label>Fecha y hora de salida del autobús (ida) <input data-k="publico.fechaSalida"></label>
+        <label>Fecha y hora de salida del autobús (regreso) <input data-k="publico.fechaRegreso"></label>
+        <label class="span2">¿Cómo viajarán de la terminal de destino al evento? <textarea data-k="publico.descripcion" rows="2"></textarea></label>
+      </div>
+    </div>
+
+    <div class="sub" data-para="aereo" hidden>
+      <h3>Transporte aéreo — salida</h3>
+      <div class="grid">
+        <label>Aerolínea <input data-k="aereo.ida.aerolinea"></label>
+        <label>Aeropuerto de destino <input data-k="aereo.ida.aeropuerto"></label>
+        <label>Número de vuelo <input data-k="aereo.ida.vuelo"></label>
+        <label>Fecha y hora del vuelo <input data-k="aereo.ida.fecha"></label>
+        <label class="span2">¿Cómo viajarán del aeropuerto al evento? <textarea data-k="aereo.ida.descripcion" rows="2"></textarea></label>
+      </div>
+      <h3>Transporte aéreo — regreso</h3>
+      <div class="grid">
+        <label>Aerolínea <input data-k="aereo.regreso.aerolinea"></label>
+        <label>Aeropuerto de salida <input data-k="aereo.regreso.aeropuerto"></label>
+        <label>Número de vuelo <input data-k="aereo.regreso.vuelo"></label>
+        <label>Fecha y hora del vuelo <input data-k="aereo.regreso.fecha"></label>
+        <label class="span2">¿Cómo llegarán del evento al aeropuerto? <textarea data-k="aereo.regreso.descripcion" rows="2"></textarea></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Scouts -->
+  <section class="card">
+    <h2><span class="num">3</span> Scouts de tu sección</h2>
+    <div class="info">
+      <p><strong>¿De dónde saco el Excel?</strong> Desde <strong>la Carpeta</strong> (la plataforma de registro de ASMAC) puedes
+        descargar a <strong>todos los Scouts de tu sección como archivo .xlsx</strong>. Súbelo aquí tal cual y la lista
+        se llena sola: nombre, CUM y sección se toman del archivo.</p>
+      <p>No tienes que editar nada del Excel. Si quieres ver cómo luce, descarga el
+        <a href="ejemplo/scouts_ejemplo.xlsx" download>archivo de ejemplo</a> (datos ficticios).</p>
+    </div>
+
+    <label class="subir" id="zona-subir">
+      <input type="file" id="archivo" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
+      <span class="subir-icono">📄</span>
+      <span><strong>Elige tu archivo .xlsx</strong> o arrástralo aquí</span>
+      <small>Se lee en tu dispositivo, no se sube a ningún lado.</small>
+    </label>
+    <p id="estado-archivo" class="estado" aria-live="polite"></p>
+
+    <div id="bloque-scouts" hidden>
+      <div class="barra">
+        <input type="search" id="buscar" placeholder="🔍 Buscar por nombre, CUM o pequeño grupo…">
+        <button type="button" id="todos" class="sec">Seleccionar todos los vigentes</button>
+        <button type="button" id="ninguno" class="sec">Quitar todos</button>
+      </div>
+      <p class="contador" id="contador-scouts"></p>
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead><tr><th class="c-chk"></th><th>Nombre</th><th>CUM</th><th>Sección</th><th>Peq. grupo</th><th>Cargo</th><th>Estatus</th></tr></thead>
+          <tbody id="lista-scouts"></tbody>
+        </table>
+      </div>
+
+      <div id="bloque-vencidos" class="vencidos" hidden>
+        <h3>⚠️ Registro vencido — no pueden viajar en el protocolo</h3>
+        <p>Estas personas aparecen en tu Excel pero su registro en ASMAC <strong>no está vigente</strong>, por eso
+          <strong>no se pueden seleccionar</strong> y no se incluyen en el documento. Para que puedan ir al evento
+          deben renovar su registro; después vuelve a descargar el Excel de la Carpeta y súbelo de nuevo.</p>
+        <ul id="lista-vencidos"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Scouters y externos -->
+  <section class="card">
+    <h2><span class="num">4</span> Scouters y personas externas</h2>
+    <p class="ayuda">Los Scouters (jefes de sección y dirigentes) y cualquier persona que no viene en tu Excel
+      (otro grupo, papás, choferes, no scouts…) se agregan <strong>a mano</strong>. El documento oficial pide anotar
+      a <em>todos</em> los pasajeros, sean o no de ASMAC.</p>
+    <form id="form-manual" class="grid manual" autocomplete="off">
+      <label class="span2">Nombre completo * <input name="nombre" required></label>
+      <label>CUM <small>(si tiene)</small> <input name="cum"></label>
+      <label>Tipo *
+        <select name="cat" required>
+          <option value="S">Scouter (jefe de sección)</option>
+          <option value="D">Dirigente (de grupo / provincia)</option>
+          <option value="ML">Lobato/a de otro grupo (Manada)</option>
+          <option value="TS">Scout de otro grupo (Tropa)</option>
+          <option value="CC">Caminante de otro grupo (Comunidad)</option>
+          <option value="CR">Rover de otro grupo (Clan)</option>
+          <option value="OTRO">No scout (papá, mamá, chofer…)</option>
+        </select>
+      </label>
+      <label class="span2">Grupo de procedencia / nota <small>(opcional, no va en el documento)</small> <input name="nota"></label>
+      <div class="span2"><button type="submit" class="prim">+ Agregar persona</button></div>
+    </form>
+    <ul id="lista-manual" class="manuales"></ul>
+  </section>
+
+  <!-- 5. Resumen -->
+  <section class="card">
+    <h2><span class="num">5</span> Resumen y documento</h2>
+    <div id="resumen" class="resumen"></div>
+    <details class="pasajeros-det">
+      <summary>Ver lista de pasajeros (<span id="n-pasajeros">0</span>)</summary>
+      <ol id="lista-pasajeros"></ol>
+    </details>
+    <ul id="avisos" class="avisos"></ul>
+    <div class="acciones">
+      <button type="button" id="descargar" class="prim">⬇️ Descargar protocolo (Word)</button>
+      <button type="button" id="compartir" class="sec" hidden>📤 Compartir</button>
+      <a class="btn sec" href="plantilla/Protocolo%20de%20transporte%20eventos%202026%20CNAR.docx" download>Formato oficial en blanco</a>
+    </div>
+    <p id="estado" class="estado" aria-live="polite"></p>
+    <div class="info">
+      <p><strong>Siguiente paso:</strong> revisa el documento, guárdalo como PDF si lo necesitas (Word, Google Docs o
+        WPS: <em>Archivo → Guardar como / Descargar → PDF</em>) y envíalo junto con las imágenes de los documentos
+        anexos a la Comisión de Administración de Riesgos de tu provincia y a
+        <a href="mailto:cnar@scouts.org.mx">cnar@scouts.org.mx</a>.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Herramienta independiente y de código abierto (<a href="https://github.com/Sl4sh3r999/protocolo_transporte_asmac">GitHub</a>).
+    Usa el formato oficial “Protocolo de transporte eventos 2026 CNAR”. Documento generado con
+    <a href="https://github.com/Stuk/jszip">JSZip</a> (MIT).</p>
+</footer>
+
+<template id="tpl-vehiculo">
+  <fieldset class="vehiculo">
+    <legend>Vehículo <span class="n"></span></legend>
+    <div class="grid">
+      <label>Marca <input data-v="marca"></label>
+      <label>Modelo <input data-v="modelo"></label>
+      <label>Año <input data-v="anio" inputmode="numeric"></label>
+      <label>Capacidad (pasajeros) <input data-v="capacidad" inputmode="numeric"></label>
+      <label>Placas <input data-v="placas"></label>
+      <label>Color <input data-v="color"></label>
+      <label class="span2">Nombre del conductor <input data-v="conductor"></label>
+      <label>Número de licencia <input data-v="licencia"></label>
+      <label>Licencia expedida por <input data-v="expedida" placeholder="Ej. Aguascalientes"></label>
+      <label class="span2">Número de póliza del seguro del auto <input data-v="poliza"></label>
+    </div>
+    <p class="ayuda">¿Tienes en tu poder…? (anexar en imagen)</p>
+    <div class="sinos">
+      <div class="sino" data-v="chkPoliza">Póliza del seguro del auto</div>
+      <div class="sino" data-v="chkLicencia">Copia de licencia del conductor</div>
+      <div class="sino" data-v="chkTarjeta">Copia de tarjeta de circulación</div>
+    </div>
+    <button type="button" class="quitar sec">Quitar vehículo</button>
+  </fieldset>
+</template>
+
+<script src="vendor/jszip.min.js"></script>
+<script src="plantilla.js"></script>
+<script src="lector.js"></script>
+<script src="protocolo.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
