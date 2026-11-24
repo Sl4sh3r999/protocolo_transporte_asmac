@@ -1,5 +1,5 @@
 """Genera web/ejemplo/scouts_ejemplo.xlsx con datos ficticios y el mismo
-formato de columnas que la exportación de "Mi Carpeta" (ASMAC)."""
+formato de columnas que la exportación de Scouts de CarpetApp (app.scouts.org.mx/scouts)."""
 from pathlib import Path
 import openpyxl
 

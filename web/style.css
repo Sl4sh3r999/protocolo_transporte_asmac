@@ -113,3 +113,40 @@ button.link { border: 0; padding: 0; background: none; color: var(--acento); tex
 
 footer { color: var(--suave); font-size: .85rem; padding-bottom: 24px; }
 footer a, .info a, .privacidad a { color: var(--acento); }
+
+/* Fecha y hora con calendario y reloj */
+input.fecha { cursor: pointer; }
+input.fecha::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .8; }
+
+/* Documentos con anexo (¿Tienes en tu poder…?) */
+.sino.doc { display: block; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 10px; background: #fff; }
+.sinos { gap: 8px; }
+.doc-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.doc-nombre { font-weight: 600; }
+.sino.doc.falta { border-color: var(--mal); background: var(--mal-claro); }
+.sino.doc.listo { border-color: #9fd0b2; background: #f3faf6; }
+.adj[hidden] { display: none; }
+.adj { margin-top: 8px; }
+.adj-msg { margin: 0 0 6px; font-size: .88rem; color: var(--suave); }
+.adj-msg.mal { color: var(--mal); font-weight: 600; }
+.adj-msg.ok { color: var(--acento); }
+.adj-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.adj-btn { display: inline-flex; align-items: center; flex-direction: row; font-size: .92rem; color: var(--texto); font-weight: 600; padding: 7px 12px; }
+.adj-mini { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.adj-mini:empty { display: none; }
+.adj-mini figure { position: relative; margin: 0; width: 92px; }
+.adj-mini img { display: block; width: 92px; height: 92px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borde); background: #fff; }
+.adj-mini figcaption { font-size: .7rem; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.adj-quitar { position: absolute; top: 3px; right: 3px; padding: 0 7px; line-height: 1.6; border-radius: 999px; background: #000a; color: #fff; border: 0; font-size: .8rem; }
+.anexos-info { border-left-color: #c77d00; background: var(--aviso-claro); }
+
+.anexos-estado { margin: 4px 0 8px; }
+.anexos-cuenta { margin: 0 0 6px; font-size: .95rem; }
+.anexos-cuenta.ok { color: var(--acento); }
+.anexos-cuenta.mal { color: var(--mal); }
+.anexos-faltan, .anexos-no { margin: 0 0 6px; padding-left: 20px; font-size: .9rem; }
+.anexos-faltan li { color: var(--mal); }
+.anexos-no li { color: var(--aviso); }
+.anexos-faltan small, .anexos-no small { color: var(--suave); }
+.enlace-carpetapp { font-weight: 600; color: var(--acento); border-color: var(--acento); margin-right: 6px; }
+.enlace-carpetapp + small { color: var(--suave); }

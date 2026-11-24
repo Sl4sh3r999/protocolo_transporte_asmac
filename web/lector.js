@@ -1,5 +1,5 @@
 "use strict";
-// Lee la lista de Scouts de un .xlsx (exportado desde Mi Carpeta) o .csv
+// Lee la lista de Scouts de un .xlsx (exportado desde CarpetApp: app.scouts.org.mx/scouts) o .csv
 // directamente en el navegador. Nada sale del dispositivo.
 
 const NS_SS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
@@ -99,7 +99,7 @@ function leerCsv(texto) {
   return filas;
 }
 
-// Columnas reconocidas (encabezados de Mi Carpeta y variantes comunes)
+// Columnas reconocidas (encabezados de CarpetApp y variantes comunes)
 const COLUMNAS = {
   nombre: [/^nombre( completo)?$/, /^nombre/],
   apellidos: [/^apellidos?$/],

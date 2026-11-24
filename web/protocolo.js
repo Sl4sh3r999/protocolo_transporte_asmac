@@ -152,9 +152,10 @@ function llenarVehiculo(d, filas, veh) {
  * @param {ArrayBuffer} plantilla  bytes del .docx oficial
  * @param {object} datos           estado del formulario
  * @param {Array} pasajeros        [{nombre, cum, cat}]
+ * @param {Array} anexos           [{titulo, imagenes:[{bytes: Uint8Array (JPEG), w, h}]}]
  * @returns {Promise<Blob>}
  */
-async function generarProtocoloDocx(plantilla, datos, pasajeros) {
+async function generarProtocoloDocx(plantilla, datos, pasajeros, anexos = []) {
   const zip = await JSZip.loadAsync(plantilla);
   const docFile = zip.file("word/document.xml");
   if (!docFile) throw new Error("La plantilla no es un .docx válido.");
@@ -276,10 +277,112 @@ async function generarProtocoloDocx(plantilla, datos, pasajeros) {
     d.set(tr, COL_ROSTER[pas.cat] ?? 9, "X");
   });
 
+  await agregarAnexos(zip, d, anexos);
+
   zip.file("word/document.xml", d.xml());
   return zip.generateAsync({
     type: "blob",
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     compression: "DEFLATE",
   });
+}
+
+// ───────── Anexos en imagen (al final del documento) ─────────
+const NS_WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
+const NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+const NS_PIC = "http://schemas.openxmlformats.org/drawingml/2006/picture";
+const NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const NS_PKG_REL = "http://schemas.openxmlformats.org/package/2006/relationships";
+const NS_CT = "http://schemas.openxmlformats.org/package/2006/content-types";
+const REL_IMAGEN = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
+const EMU_POR_TWIP = 635;
+
+const escXml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function parrafosDesdeXml(d, xmlInterno) {
+  const frag = new DOMParser().parseFromString(
+    `<raiz xmlns:w="${W}" xmlns:wp="${NS_WP}" xmlns:a="${NS_A}" xmlns:pic="${NS_PIC}" xmlns:r="${NS_R}">${xmlInterno}</raiz>`,
+    "application/xml");
+  if (frag.getElementsByTagName("parsererror").length) throw new Error("No se pudo armar el anexo.");
+  return Array.from(frag.documentElement.childNodes).filter((n) => n.nodeType === 1).map((n) => d.doc.importNode(n, true));
+}
+
+async function agregarAnexos(zip, d, anexos) {
+  const total = anexos.reduce((s, a) => s + a.imagenes.length, 0);
+  if (!total) return;
+
+  // Relaciones del documento
+  const relsRuta = "word/_rels/document.xml.rels";
+  const rels = new DOMParser().parseFromString(await zip.file(relsRuta).async("string"), "application/xml");
+  const ids = new Set(Array.from(rels.getElementsByTagNameNS(NS_PKG_REL, "Relationship")).map((r) => r.getAttribute("Id")));
+
+  // Tipo de contenido JPEG
+  const ctRuta = "[Content_Types].xml";
+  const ct = new DOMParser().parseFromString(await zip.file(ctRuta).async("string"), "application/xml");
+  const tieneJpeg = Array.from(ct.getElementsByTagNameNS(NS_CT, "Default"))
+    .some((x) => (x.getAttribute("Extension") || "").toLowerCase() === "jpeg");
+  if (!tieneJpeg) {
+    const def = ct.createElementNS(NS_CT, "Default");
+    def.setAttribute("Extension", "jpeg");
+    def.setAttribute("ContentType", "image/jpeg");
+    ct.documentElement.insertBefore(def, ct.documentElement.firstChild);
+  }
+
+  // Espacio útil de la página (según la sección final de la plantilla)
+  const sectPr = hijo(d.body, "sectPr");
+  const pgSz = sectPr && hijo(sectPr, "pgSz"), pgMar = sectPr && hijo(sectPr, "pgMar");
+  const num = (el, a, def) => Number(el?.getAttributeNS(W, a)) || def;
+  const anchoTw = num(pgSz, "w", 12240) - num(pgMar, "left", 1418) - num(pgMar, "right", 1418);
+  const altoTw = num(pgSz, "h", 15840) - num(pgMar, "top", 1701) - num(pgMar, "bottom", 1417);
+  const maxW = anchoTw * EMU_POR_TWIP;
+  const maxH = Math.round(altoTw * EMU_POR_TWIP * 0.72); // deja lugar al título del anexo
+
+  const insertar = (nodos) => nodos.forEach((n) => d.body.insertBefore(n, sectPr));
+  insertar(parrafosDesdeXml(d,
+    `<w:p><w:r><w:br w:type="page"/></w:r></w:p>` +
+    `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>ANEXOS</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/></w:rPr>` +
+    `<w:t xml:space="preserve">Documentos en imagen que acompañan este protocolo (${total} ${total === 1 ? "imagen" : "imágenes"}).</w:t></w:r></w:p>`));
+
+  let n = 0, docPrId = 900000001, primero = true;
+  for (const anexo of anexos) {
+    for (let i = 0; i < anexo.imagenes.length; i++) {
+      const img = anexo.imagenes[i];
+      n++;
+      let rid = `rIdAnexo${n}`;
+      while (ids.has(rid)) rid += "x";
+      ids.add(rid);
+      const archivo = `media/anexo${n}.jpeg`;
+      zip.file(`word/${archivo}`, img.bytes);
+      const rel = rels.createElementNS(NS_PKG_REL, "Relationship");
+      rel.setAttribute("Id", rid);
+      rel.setAttribute("Type", REL_IMAGEN);
+      rel.setAttribute("Target", archivo);
+      rels.documentElement.appendChild(rel);
+
+      // Tamaño: llenar el ancho sin pasar del alto disponible, conservando proporción
+      const k = Math.min(maxW / img.w, maxH / img.h);
+      const cx = Math.round(img.w * k), cy = Math.round(img.h * k);
+      const sufijo = anexo.imagenes.length > 1 ? ` (${i + 1} de ${anexo.imagenes.length})` : "";
+      const salto = primero ? "" : `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+      primero = false;
+      insertar(parrafosDesdeXml(d, salto +
+        `<w:p><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/></w:pPr>` +
+        `<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Anexo ${n}. ${escXml(anexo.titulo)}${sufijo}</w:t></w:r></w:p>` +
+        `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing>` +
+        `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/>` +
+        `<wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${docPrId++}" name="Anexo ${n}"/>` +
+        `<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
+        `<a:graphic><a:graphicData uri="${NS_PIC}"><pic:pic>` +
+        `<pic:nvPicPr><pic:cNvPr id="${n}" name="anexo${n}.jpeg"/><pic:cNvPicPr/></pic:nvPicPr>` +
+        `<pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+        `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+        `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
+        `<a:ln w="6350"><a:solidFill><a:srgbClr val="8C8C8C"/></a:solidFill></a:ln></pic:spPr></pic:pic></a:graphicData></a:graphic>` +
+        `</wp:inline></w:drawing></w:r></w:p>`));
+    }
+  }
+
+  zip.file(relsRuta, new XMLSerializer().serializeToString(rels));
+  zip.file(ctRuta, new XMLSerializer().serializeToString(ct));
 }

@@ -16,7 +16,7 @@
   <div class="privacidad" role="note">
     <strong>🔒 Tus datos no salen de este dispositivo.</strong>
     La página no envía nada a ningún servidor: el Excel se lee y el documento se arma aquí mismo, en tu navegador.
-    Tu avance se guarda solo en este navegador para que no lo pierdas; puedes borrarlo cuando quieras con
+    Tu avance y las fotos que adjuntes se guardan solo en este navegador para que no lo pierdas; puedes borrarlo cuando quieras con
     <button type="button" id="borrar-todo" class="link">Borrar todo</button>.
   </div>
 </header>
@@ -50,10 +50,10 @@
 
     <h3>Salida y regreso</h3>
     <div class="grid">
-      <label>Fecha y hora de salida <input data-k="evento.salidaFechaHora" placeholder="dd/mm/aaaa hh:mm"></label>
-      <label>Llegada estimada al evento <input data-k="evento.salidaLlegada" placeholder="dd/mm/aaaa hh:mm"></label>
-      <label>Fecha y hora de regreso <input data-k="evento.regresoFechaHora" placeholder="dd/mm/aaaa hh:mm"></label>
-      <label>Llegada estimada a tu ciudad <input data-k="evento.regresoLlegada" placeholder="dd/mm/aaaa hh:mm"></label>
+      <label>Fecha y hora de salida <input data-k="evento.salidaFechaHora" type="datetime-local" class="fecha"></label>
+      <label>Llegada estimada al evento <input data-k="evento.salidaLlegada" type="datetime-local" class="fecha"></label>
+      <label>Fecha y hora de regreso <input data-k="evento.regresoFechaHora" type="datetime-local" class="fecha"></label>
+      <label>Llegada estimada a tu ciudad <input data-k="evento.regresoLlegada" type="datetime-local" class="fecha"></label>
       <label class="span2">Punto de salida <input data-k="evento.salidaPunto"></label>
       <label class="span2">Punto de llegada (regreso) <input data-k="evento.regresoPunto"></label>
     </div>
@@ -85,7 +85,7 @@
         <label>Placas <input data-k="contratado.placas"></label>
         <label class="span2">Nombre del operador <input data-k="contratado.operador"></label>
       </div>
-      <p class="ayuda">¿Tienes en tu poder…? (deberás anexarlo en imagen al enviar el protocolo)</p>
+      <div class="info anexos-info"><p><strong>📎 ¿Tienes en tu poder…?</strong> CNAR pide <strong>anexar en imagen</strong> cada documento. Responde Sí o No y <strong>adjunta la foto o el PDF</strong> de los que tengas: en la computadora se abre el explorador de archivos y en el celular puedes <strong>tomar la foto con la cámara</strong> o elegirla de tu galería. Las imágenes se integran al final del protocolo.</p></div>
       <div class="sinos">
         <div class="sino" data-k="contratado.chkContrato">Contrato del servicio de transporte</div>
         <div class="sino" data-k="contratado.chkFeMecanica">Fe mecánica de la unidad</div>
@@ -100,8 +100,8 @@
       <div class="grid">
         <label>Línea de autobuses (salida) <input data-k="publico.lineaSalida"></label>
         <label>Línea de autobuses (regreso) <input data-k="publico.lineaRegreso"></label>
-        <label>Fecha y hora de salida del autobús (ida) <input data-k="publico.fechaSalida"></label>
-        <label>Fecha y hora de salida del autobús (regreso) <input data-k="publico.fechaRegreso"></label>
+        <label>Fecha y hora de salida del autobús (ida) <input data-k="publico.fechaSalida" type="datetime-local" class="fecha"></label>
+        <label>Fecha y hora de salida del autobús (regreso) <input data-k="publico.fechaRegreso" type="datetime-local" class="fecha"></label>
         <label class="span2">¿Cómo viajarán de la terminal de destino al evento? <textarea data-k="publico.descripcion" rows="2"></textarea></label>
       </div>
     </div>
@@ -112,7 +112,7 @@
         <label>Aerolínea <input data-k="aereo.ida.aerolinea"></label>
         <label>Aeropuerto de destino <input data-k="aereo.ida.aeropuerto"></label>
         <label>Número de vuelo <input data-k="aereo.ida.vuelo"></label>
-        <label>Fecha y hora del vuelo <input data-k="aereo.ida.fecha"></label>
+        <label>Fecha y hora del vuelo <input data-k="aereo.ida.fecha" type="datetime-local" class="fecha"></label>
         <label class="span2">¿Cómo viajarán del aeropuerto al evento? <textarea data-k="aereo.ida.descripcion" rows="2"></textarea></label>
       </div>
       <h3>Transporte aéreo — regreso</h3>
@@ -120,7 +120,7 @@
         <label>Aerolínea <input data-k="aereo.regreso.aerolinea"></label>
         <label>Aeropuerto de salida <input data-k="aereo.regreso.aeropuerto"></label>
         <label>Número de vuelo <input data-k="aereo.regreso.vuelo"></label>
-        <label>Fecha y hora del vuelo <input data-k="aereo.regreso.fecha"></label>
+        <label>Fecha y hora del vuelo <input data-k="aereo.regreso.fecha" type="datetime-local" class="fecha"></label>
         <label class="span2">¿Cómo llegarán del evento al aeropuerto? <textarea data-k="aereo.regreso.descripcion" rows="2"></textarea></label>
       </div>
     </div>
@@ -130,9 +130,11 @@
   <section class="card">
     <h2><span class="num">3</span> Scouts de tu sección</h2>
     <div class="info">
-      <p><strong>¿De dónde saco el Excel?</strong> Desde <strong>la Carpeta</strong> (la plataforma de registro de ASMAC) puedes
-        descargar a <strong>todos los Scouts de tu sección como archivo .xlsx</strong>. Súbelo aquí tal cual y la lista
+      <p><strong>¿De dónde saco el Excel?</strong> Desde <strong>CarpetApp</strong> puedes descargar a
+        <strong>todos los Scouts de tu grupo o sección como archivo .xlsx</strong>. Súbelo aquí tal cual y la lista
         se llena sola: nombre, CUM y sección se toman del archivo.</p>
+      <p><a class="btn sec enlace-carpetapp" href="https://app.scouts.org.mx/scouts" target="_blank" rel="noopener noreferrer">↗ Abrir CarpetApp — Scouts</a>
+        <small>app.scouts.org.mx/scouts</small></p>
       <p>No tienes que editar nada del Excel. Si quieres ver cómo luce, descarga el
         <a href="ejemplo/scouts_ejemplo.xlsx" download>archivo de ejemplo</a> (datos ficticios).</p>
     </div>
@@ -163,7 +165,7 @@
         <h3>⚠️ Registro vencido — no pueden viajar en el protocolo</h3>
         <p>Estas personas aparecen en tu Excel pero su registro en ASMAC <strong>no está vigente</strong>, por eso
           <strong>no se pueden seleccionar</strong> y no se incluyen en el documento. Para que puedan ir al evento
-          deben renovar su registro; después vuelve a descargar el Excel de la Carpeta y súbelo de nuevo.</p>
+          deben renovar su registro; después vuelve a descargar el Excel de CarpetApp y súbelo de nuevo.</p>
         <ul id="lista-vencidos"></ul>
       </div>
     </div>
@@ -203,6 +205,7 @@
       <summary>Ver lista de pasajeros (<span id="n-pasajeros">0</span>)</summary>
       <ol id="lista-pasajeros"></ol>
     </details>
+    <div id="anexos-estado" class="anexos-estado"></div>
     <ul id="avisos" class="avisos"></ul>
     <div class="acciones">
       <button type="button" id="descargar" class="prim">⬇️ Descargar protocolo (Word)</button>
@@ -212,8 +215,8 @@
     <p id="estado" class="estado" aria-live="polite"></p>
     <div class="info">
       <p><strong>Siguiente paso:</strong> revisa el documento, guárdalo como PDF si lo necesitas (Word, Google Docs o
-        WPS: <em>Archivo → Guardar como / Descargar → PDF</em>) y envíalo junto con las imágenes de los documentos
-        anexos a la Comisión de Administración de Riesgos de tu provincia y a
+        WPS: <em>Archivo → Guardar como / Descargar → PDF</em>) y envíalo (las fotos de los documentos ya van como anexos al
+        final) a la Comisión de Administración de Riesgos de tu provincia y a
         <a href="mailto:cnar@scouts.org.mx">cnar@scouts.org.mx</a>.</p>
     </div>
   </section>
@@ -222,7 +225,7 @@
 <footer>
   <p>Herramienta independiente y de código abierto (<a href="https://github.com/Sl4sh3r999/protocolo_transporte_asmac">GitHub</a>).
     Usa el formato oficial “Protocolo de transporte eventos 2026 CNAR”. Documento generado con
-    <a href="https://github.com/Stuk/jszip">JSZip</a> (MIT).</p>
+    <a href="https://github.com/Stuk/jszip">JSZip</a> (MIT) y <a href="https://github.com/mozilla/pdf.js">pdf.js</a> (Apache 2.0).</p>
 </footer>
 
 <template id="tpl-vehiculo">
@@ -240,7 +243,7 @@
       <label>Licencia expedida por <input data-v="expedida" placeholder="Ej. Aguascalientes"></label>
       <label class="span2">Número de póliza del seguro del auto <input data-v="poliza"></label>
     </div>
-    <p class="ayuda">¿Tienes en tu poder…? (anexar en imagen)</p>
+    <p class="ayuda"><strong>¿Tienes en tu poder…?</strong> Adjunta la foto o el PDF de cada documento: se integra como anexo al final del protocolo.</p>
     <div class="sinos">
       <div class="sino" data-v="chkPoliza">Póliza del seguro del auto</div>
       <div class="sino" data-v="chkLicencia">Copia de licencia del conductor</div>
@@ -254,6 +257,7 @@
 <script src="plantilla.js"></script>
 <script src="lector.js"></script>
 <script src="protocolo.js"></script>
+<script src="adjuntos.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
