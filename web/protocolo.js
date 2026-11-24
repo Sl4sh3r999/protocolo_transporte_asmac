@@ -127,10 +127,90 @@ class DocxLlenador {
 }
 
 const v = (x) => (x ?? "").toString().trim();
+
+// Orden de los hijos que exige el esquema de Word (si se rompe, Word dice "contenido ilegible").
+const ORDEN_RPR = ["rStyle", "rFonts", "b", "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike", "outline",
+  "shadow", "emboss", "imprint", "noProof", "snapToGrid", "vanish", "webHidden", "color", "spacing", "w", "kern",
+  "position", "sz", "szCs", "highlight", "u", "effect", "bdr", "shd", "fitText", "vertAlign", "rtl", "cs", "em", "lang"];
+const ORDEN_PPR = ["pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr",
+  "suppressLineNumbers", "pBdr", "shd", "tabs", "suppressAutoHyphens", "kinsoku", "wordWrap", "overflowPunct",
+  "topLinePunct", "autoSpaceDE", "autoSpaceDN", "bidi", "adjustRightInd", "snapToGrid", "spacing", "ind",
+  "contextualSpacing", "mirrorIndents", "suppressOverlap", "jc", "textDirection", "textAlignment",
+  "textboxTightWrap", "outlineLvl", "divId", "cnfStyle", "rPr", "sectPr", "pPrChange"];
+const ORDEN_TRPR = ["cnfStyle", "divId", "gridBefore", "gridAfter", "wBefore", "wAfter", "cantSplit", "trHeight",
+  "tblHeader", "tblCellSpacing", "jc", "hidden", "ins", "del", "trPrChange"];
+const ORDEN_TCPR = ["cnfStyle", "tcW", "gridSpan", "hMerge", "vMerge", "tcBorders", "shd", "noWrap", "tcMar",
+  "textDirection", "tcFitText", "vAlign", "hideMark"];
+
+/** Devuelve (creándolo si falta) el hijo `nombre` de `padre`, respetando el orden del esquema. */
+function hijoOrdenado(d, padre, nombre, orden) {
+  const existente = hijo(padre, nombre);
+  if (existente) return existente;
+  const nuevo = d.el(nombre);
+  const pos = orden.indexOf(nombre);
+  const siguiente = Array.from(padre.childNodes).find((n) =>
+    n.nodeType === 1 && n.namespaceURI === W && orden.indexOf(n.localName) > pos);
+  padre.insertBefore(nuevo, siguiente || null);
+  return nuevo;
+}
+
+/** Contenedor de propiedades (rPr/pPr/trPr/tcPr): siempre es el primer hijo. */
+function props(d, el, nombre) {
+  let p = hijo(el, nombre);
+  if (!p) { p = d.el(nombre); el.insertBefore(p, el.firstChild); }
+  return p;
+}
+
+/** Marca una respuesta como lo hacen a mano en el formato: texto en negritas y resaltado amarillo. */
+function resaltar(d, tc) {
+  for (const r of Array.from(tc.getElementsByTagNameNS(W, "r"))) {
+    const rPr = props(d, r, "rPr");
+    hijoOrdenado(d, rPr, "b", ORDEN_RPR);
+    hijoOrdenado(d, rPr, "highlight", ORDEN_RPR).setAttributeNS(W, "w:val", "yellow");
+  }
+}
+
 const siNo = (tr, d, valor) => {
-  if (valor === "si") d.set(tr, 9, "X");
-  else if (valor === "no") d.set(tr, 10, "X");
+  if (valor === "si") resaltar(d, d.celda(tr, 9));
+  else if (valor === "no") resaltar(d, d.celda(tr, 10));
 };
+
+/** Evita que un bloque de filas se parta entre dos páginas. */
+function mantenerJuntas(d, filas) {
+  filas.forEach((tr, i) => {
+    hijoOrdenado(d, props(d, tr, "trPr"), "cantSplit", ORDEN_TRPR);
+    if (i === filas.length - 1) return;
+    for (const p of Array.from(tr.getElementsByTagNameNS(W, "p"))) hijoOrdenado(d, props(d, p, "pPr"), "keepNext", ORDEN_PPR);
+  });
+}
+
+/** Fila que ocupa todo el ancho de la tabla de pasajeros, con el nombre del vehículo. */
+function filaEncabezado(d, filaModelo, texto) {
+  const tr = filaModelo.cloneNode(true);
+  const tcs = hijos(tr, "tc");
+  const ancho = tcs.reduce((s, tc) => {
+    const w = hijo(hijo(tc, "tcPr") || tc, "tcW");
+    return s + (Number(w?.getAttributeNS(W, "w")) || 0);
+  }, 0);
+  tcs.slice(1).forEach((tc) => tr.removeChild(tc));
+  const tc = tcs[0];
+  const tcPr = props(d, tc, "tcPr");
+  const tcW = hijoOrdenado(d, tcPr, "tcW", ORDEN_TCPR);
+  if (ancho) { tcW.setAttributeNS(W, "w:w", String(ancho)); tcW.setAttributeNS(W, "w:type", "dxa"); }
+  hijoOrdenado(d, tcPr, "gridSpan", ORDEN_TCPR).setAttributeNS(W, "w:val", String(tcs.length));
+  const shd = hijoOrdenado(d, tcPr, "shd", ORDEN_TCPR);
+  shd.setAttributeNS(W, "w:val", "clear");
+  shd.setAttributeNS(W, "w:color", "auto");
+  shd.setAttributeNS(W, "w:fill", "E7E0F0");
+  d.celdaLimpia(tc, texto);
+  for (const r of Array.from(tc.getElementsByTagNameNS(W, "r"))) hijoOrdenado(d, props(d, r, "rPr"), "b", ORDEN_RPR);
+  for (const p of Array.from(tc.getElementsByTagNameNS(W, "p"))) {
+    const pPr = props(d, p, "pPr");
+    hijoOrdenado(d, pPr, "keepNext", ORDEN_PPR);
+    hijoOrdenado(d, pPr, "jc", ORDEN_PPR).setAttributeNS(W, "w:val", "left");
+  }
+  return tr;
+}
 
 function llenarVehiculo(d, filas, veh) {
   d.set(filas[1], 3, `Marca: ${v(veh.marca)}`);
@@ -151,7 +231,7 @@ function llenarVehiculo(d, filas, veh) {
 /**
  * @param {ArrayBuffer} plantilla  bytes del .docx oficial
  * @param {object} datos           estado del formulario
- * @param {Array} pasajeros        [{nombre, cum, cat}]
+ * @param {Array} pasajeros        [{nombre, cum, cat, grupo?}] (grupo = encabezado del vehículo)
  * @param {Array} anexos           [{titulo, imagenes:[{bytes: Uint8Array (JPEG), w, h}]}]
  * @returns {Promise<Blob>}
  */
@@ -228,11 +308,14 @@ async function generarProtocoloDocx(plantilla, datos, pasajeros, anexos = []) {
   const vehiculos = medios.includes("particular") ? (datos.vehiculos || []) : [];
   const pristinos = t2.slice(VB_INICIO, VB_INICIO + VB_LARGO).map((tr) => tr.cloneNode(true));
   if (vehiculos.length) {
-    llenarVehiculo(d, t2.slice(VB_INICIO, VB_INICIO + VB_LARGO), vehiculos[0]);
+    const primero = t2.slice(VB_INICIO, VB_INICIO + VB_LARGO);
+    llenarVehiculo(d, primero, vehiculos[0]);
+    mantenerJuntas(d, primero.slice(0, VB_LARGO - 1)); // la última fila es el separador en blanco
     for (const veh of vehiculos.slice(1)) {
       const nuevos = pristinos.map((tr) => tr.cloneNode(true));
       nuevos.forEach((tr) => tbl2.appendChild(tr));
       llenarVehiculo(d, nuevos, veh);
+      mantenerJuntas(d, nuevos.slice(0, VB_LARGO - 1));
     }
   }
 
@@ -268,7 +351,13 @@ async function generarProtocoloDocx(plantilla, datos, pasajeros, anexos = []) {
   const tbl5 = tablas[5];
   const filaModelo = t5[2].cloneNode(true);
   t5.slice(2).forEach((tr) => tbl5.removeChild(tr));
+  // Si los pasajeros traen `grupo` (vehículo asignado), se agrupan con una fila de encabezado por unidad.
+  let grupoActual = null;
   pasajeros.forEach((pas, i) => {
+    if (pas.grupo && pas.grupo !== grupoActual) {
+      grupoActual = pas.grupo;
+      tbl5.appendChild(filaEncabezado(d, filaModelo, pas.grupo));
+    }
     const tr = filaModelo.cloneNode(true);
     tbl5.appendChild(tr);
     d.set(tr, 0, String(i + 1));

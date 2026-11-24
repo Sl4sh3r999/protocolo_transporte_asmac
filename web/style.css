@@ -150,3 +150,25 @@ input.fecha::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .8; }
 .anexos-faltan small, .anexos-no small { color: var(--suave); }
 .enlace-carpetapp { font-weight: 600; color: var(--acento); border-color: var(--acento); margin-right: 6px; }
 .enlace-carpetapp + small { color: var(--suave); }
+
+/* Vehículos: estado y conductor */
+.conductor-estado { margin: -4px 0 0; font-size: .88rem; }
+.conductor-estado:empty { display: none; }
+.conductor-estado .ok, .veh-estado.ok { color: var(--acento); }
+.conductor-estado .mal, .veh-estado.mal { color: var(--mal); }
+.conductor-agregar { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 4px; color: var(--texto); }
+.conductor-agregar button { padding: 3px 10px; font-size: .85rem; }
+.veh-estado { margin: 10px 0 0; font-size: .9rem; font-weight: 600; }
+
+/* Pasajeros por vehículo */
+.cupos { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.cupo { border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font-size: .85rem; }
+.cupo b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.cupo small { color: var(--suave); }
+.cupo.lleno { background: var(--acento-claro); border-color: #9fd0b2; }
+.cupo.mal { background: var(--mal-claro); border-color: var(--mal); color: var(--mal); }
+.contador.mal { color: var(--mal); font-weight: 600; }
+.contador.ok { color: var(--acento); }
+.tabla-asig tr { cursor: default; }
+.tabla-asig tr.sin td { background: var(--aviso-claro); }
+.tabla-asig select { width: 100%; max-width: 360px; padding: 5px 8px; }

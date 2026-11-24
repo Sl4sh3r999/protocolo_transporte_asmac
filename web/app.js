@@ -9,6 +9,7 @@ function estadoVacio() {
   return {
     evento: {}, medios: [], contratado: {}, publico: {}, aereo: { ida: {}, regreso: {} },
     vehiculos: [], scouts: [], tieneEstatus: true, archivo: "", seleccion: [], manuales: [],
+    asignacion: {}, // id de pasajero → id de vehículo
   };
 }
 
@@ -24,7 +25,12 @@ let S = cargar();
 function cargar() {
   try {
     const x = JSON.parse(localStorage.getItem(CLAVE_GUARDADO) || "null");
-    if (x && typeof x === "object") return migrarFechas(Object.assign(estadoVacio(), x));
+    if (x && typeof x === "object") {
+      const est = migrarFechas(Object.assign(estadoVacio(), x));
+      est.asignacion ||= {};
+      for (const m of est.manuales) m.id ||= `m${Math.random().toString(36).slice(2, 10)}`;
+      return est;
+    }
   } catch { /* almacenamiento no disponible o dañado */ }
   return estadoVacio();
 }
@@ -268,6 +274,7 @@ function renderVehiculos() {
     veh.id ??= `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
     const frag = $("tpl-vehiculo").content.cloneNode(true);
     frag.querySelector(".n").textContent = i + 1;
+    frag.querySelector(".vehiculo").dataset.vehId = veh.id;
     frag.querySelectorAll("[data-v]").forEach((el) => {
       const k = el.dataset.v;
       if (el.classList.contains("sino")) {
@@ -275,6 +282,7 @@ function renderVehiculos() {
       } else {
         el.value = veh[k] || "";
         el.addEventListener("input", () => { veh[k] = el.value; guardar(); actualizarResumen(); });
+        if (k === "placas") el.addEventListener("blur", () => { el.value = veh.placas = (veh.placas || "").toUpperCase().trim(); guardar(); });
       }
     });
     frag.querySelector(".quitar").addEventListener("click", async () => {
@@ -377,6 +385,7 @@ function renderManuales() {
       <small>${escapar([p.cum, p.nota].filter(Boolean).join(" · "))}</small>
       <button type="button" class="quitar sec" aria-label="Quitar">✕</button>`;
     li.querySelector("button").addEventListener("click", () => {
+      delete S.asignacion[p.id];
       S.manuales.splice(i, 1); renderManuales(); guardar(); actualizarResumen();
     });
     ul.appendChild(li);
@@ -384,11 +393,187 @@ function renderManuales() {
 }
 
 // ───────── Pasajeros y resumen ─────────
+const nuevoId = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+const normNombre = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
 function pasajeros() {
   const sel = new Set(S.seleccion);
   const jovenes = S.scouts.filter((s) => s.vigente && sel.has(s.id));
-  const lista = [...jovenes, ...S.manuales].map((p) => ({ nombre: p.nombre, cum: p.cum, cat: p.cat || "OTRO" }));
+  const lista = [...jovenes, ...S.manuales].map((p) => ({
+    id: p.id, nombre: p.nombre, cum: p.cum, cat: p.cat || "OTRO", vehId: S.asignacion[p.id] || "",
+  }));
   return lista.sort((a, b) => ORDEN_CAT.indexOf(a.cat) - ORDEN_CAT.indexOf(b.cat));
+}
+
+const usaParticular = () => S.medios.includes("particular") && S.vehiculos.length > 0;
+const capacidad = (veh) => parseInt(veh.capacidad, 10) || 0;
+
+function nombreVehiculo(veh, i) {
+  const desc = [veh.marca, veh.modelo].filter(Boolean).join(" ");
+  return `Vehículo ${i + 1}${desc ? ` (${desc}${veh.placas ? ` · ${veh.placas}` : ""})` : ""}`;
+}
+
+/** El conductor también es pasajero: si su nombre está en la lista, viaja en su vehículo. */
+function sincronizarConductores(lista) {
+  const vehIds = new Set(S.vehiculos.map((v) => v.id));
+  for (const id of Object.keys(S.asignacion)) if (!vehIds.has(S.asignacion[id])) delete S.asignacion[id];
+  for (const veh of S.vehiculos) {
+    const p = conductorEnLista(veh, lista);
+    if (p) { S.asignacion[p.id] = veh.id; p.vehId = veh.id; }
+  }
+}
+
+function conductorEnLista(veh, lista) {
+  const n = normNombre(veh.conductor);
+  return n ? lista.find((p) => normNombre(p.nombre) === n) : null;
+}
+
+/** Lista para el Word: agrupada por vehículo (conductor primero) cuando hay transporte particular. */
+function pasajerosParaDocumento() {
+  const lista = pasajeros();
+  if (!usaParticular() || !lista.some((p) => p.vehId)) return lista;
+  sincronizarConductores(lista);
+  const out = [];
+  S.vehiculos.forEach((veh, i) => {
+    const suyos = lista.filter((p) => p.vehId === veh.id);
+    if (!suyos.length) return;
+    const cond = conductorEnLista(veh, suyos);
+    suyos.sort((a, b) => (b === cond) - (a === cond));
+    const partes = [`Vehículo ${i + 1}: ${[veh.marca, veh.modelo].filter(Boolean).join(" ") || "sin marca"}`];
+    if (veh.placas) partes.push(`Placas ${veh.placas}`);
+    if (veh.conductor) partes.push(`Conductor: ${veh.conductor}`);
+    partes.push(`${suyos.length} ${suyos.length === 1 ? "persona" : "personas"}`);
+    suyos.forEach((p) => out.push({ ...p, grupo: partes.join(" · ") }));
+  });
+  const sinAuto = lista.filter((p) => !p.vehId);
+  sinAuto.forEach((p) => out.push({ ...p, grupo: "Sin vehículo asignado" }));
+  return out;
+}
+
+// ───────── Pasajeros por vehículo ─────────
+function renderAsignacion() {
+  const sec = $("sec-asignacion");
+  sec.hidden = !usaParticular();
+  if (sec.hidden) return;
+  const lista = pasajeros();
+  sincronizarConductores(lista);
+
+  $("cupos").innerHTML = S.vehiculos.map((veh, i) => {
+    const n = lista.filter((p) => p.vehId === veh.id).length, cap = capacidad(veh);
+    const cls = cap && n > cap ? "mal" : cap && n === cap ? "lleno" : "";
+    return `<div class="cupo ${cls}"><b>${n}${cap ? ` / ${cap}` : ""}</b><span>${escapar(nombreVehiculo(veh, i))}</span>` +
+      `${veh.conductor ? `<small>Conductor: ${escapar(veh.conductor)}</small>` : ""}</div>`;
+  }).join("");
+  const sin = lista.filter((p) => !p.vehId).length;
+  $("sin-asignar").textContent = sin ? `${sin} ${sin === 1 ? "persona sin vehículo" : "personas sin vehículo"}` : "✔ Todos tienen vehículo";
+  $("sin-asignar").className = sin ? "contador mal" : "contador ok";
+
+  const tbody = $("tabla-asignacion");
+  tbody.innerHTML = "";
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="3" class="vacio">Primero elige a los Scouts (paso 3) y agrega a Scouters y externos (paso 4).</td></tr>`;
+    return;
+  }
+  for (const p of lista) {
+    const esConductor = S.vehiculos.some((veh) => conductorEnLista(veh, [p]));
+    const tr = document.createElement("tr");
+    tr.className = p.vehId ? "" : "sin";
+    const opciones = [`<option value="">— Sin vehículo —</option>`, ...S.vehiculos.map((veh, i) =>
+      `<option value="${veh.id}"${veh.id === p.vehId ? " selected" : ""}>${escapar(nombreVehiculo(veh, i))}</option>`)].join("");
+    tr.innerHTML = `<td>${escapar(p.nombre)}${esConductor ? ' <span class="badge ok">Conductor</span>' : ""}</td>
+      <td>${NOMBRE_CAT[p.cat] || p.cat}</td>
+      <td><select aria-label="Vehículo de ${escapar(p.nombre)}"${esConductor ? " disabled title=\"Viaja en el vehículo que conduce\"" : ""}>${opciones}</select></td>`;
+    tr.querySelector("select").addEventListener("change", (e) => {
+      if (e.target.value) S.asignacion[p.id] = e.target.value; else delete S.asignacion[p.id];
+      guardar(); actualizarResumen();
+    });
+    tbody.appendChild(tr);
+  }
+}
+
+/** Reparte a quienes no tienen vehículo, llenando cada auto hasta su capacidad (el conductor cuenta). */
+function repartirAutomatico() {
+  const lista = pasajeros();
+  sincronizarConductores(lista);
+  const ocupados = new Map(S.vehiculos.map((v) => [v.id, lista.filter((p) => p.vehId === v.id).length]));
+  let sobran = 0;
+  for (const p of lista.filter((x) => !x.vehId)) {
+    const veh = S.vehiculos.find((v) => !capacidad(v) || ocupados.get(v.id) < capacidad(v));
+    if (!veh) { sobran++; continue; }
+    S.asignacion[p.id] = veh.id;
+    ocupados.set(veh.id, ocupados.get(veh.id) + 1);
+  }
+  guardar(); actualizarResumen();
+  aviso($("estado-asignacion"), sobran
+    ? `No alcanzan los lugares: ${sobran} ${sobran === 1 ? "persona quedó" : "personas quedaron"} sin vehículo. Agrega otro vehículo o revisa las capacidades.`
+    : "✔ Pasajeros repartidos. Revisa y cambia lo que necesites.", sobran > 0);
+}
+
+// ───────── Revisión de vehículos ─────────
+const ANIO_ACTUAL = new Date().getFullYear();
+const CAMPOS_VEHICULO = [["marca", "marca"], ["modelo", "modelo"], ["anio", "año"], ["capacidad", "capacidad"],
+  ["placas", "placas"], ["color", "color"], ["conductor", "conductor"], ["licencia", "número de licencia"],
+  ["expedida", "«expedida por»"]];
+const normPlaca = (s) => String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+/** Problemas por vehículo: {veh.id: [textos]} */
+function problemasVehiculos(lista) {
+  const out = {};
+  if (!S.medios.includes("particular")) return out;
+  const placas = new Map(), conductores = new Map();
+  S.vehiculos.forEach((veh, i) => {
+    const pr = (out[veh.id] = []);
+    const faltan = CAMPOS_VEHICULO.filter(([k]) => !String(veh[k] || "").trim()).map(([, t]) => t);
+    if (faltan.length) pr.push(`faltan: ${faltan.join(", ")}`);
+    if (veh.anio) {
+      const a = Number(veh.anio);
+      if (!/^\d{4}$/.test(String(veh.anio).trim()) || a < 1950 || a > ANIO_ACTUAL + 1) pr.push(`el año «${veh.anio}» no parece válido`);
+    }
+    if (veh.capacidad && !(capacidad(veh) > 0 && capacidad(veh) < 60)) pr.push(`la capacidad «${veh.capacidad}» no parece válida`);
+    const pl = normPlaca(veh.placas);
+    if (pl) { if (placas.has(pl)) pr.push(`tiene las mismas placas que el vehículo ${placas.get(pl) + 1}`); else placas.set(pl, i); }
+    const cn = normNombre(veh.conductor);
+    if (cn) {
+      if (conductores.has(cn)) pr.push(`el conductor ya maneja el vehículo ${conductores.get(cn) + 1}`); else conductores.set(cn, i);
+      if (!conductorEnLista(veh, lista)) pr.push("el conductor no está en la lista de pasajeros");
+    }
+    const n = lista.filter((p) => p.vehId === veh.id).length;
+    if (capacidad(veh) && n > capacidad(veh)) pr.push(`lleva ${n} personas y su capacidad es ${capacidad(veh)}`);
+  });
+  return out;
+}
+
+function pintarEstadoVehiculos(lista) {
+  const prob = problemasVehiculos(lista);
+  document.querySelectorAll("#vehiculos .vehiculo").forEach((fs) => {
+    const veh = S.vehiculos.find((v) => v.id === fs.dataset.vehId);
+    if (!veh) return;
+    const p = prob[veh.id] || [];
+    const box = fs.querySelector(".veh-estado");
+    box.className = `veh-estado ${p.length ? "mal" : "ok"}`;
+    box.textContent = p.length ? `⚠️ ${p.join(" · ")}` : "✔ Datos del vehículo completos.";
+    // Conductor: ¿está en la lista de pasajeros?
+    const est = fs.querySelector(".conductor-estado");
+    const enLista = conductorEnLista(veh, lista);
+    est.innerHTML = "";
+    if (!veh.conductor?.trim()) return;
+    if (enLista) {
+      est.innerHTML = `<span class="ok">✔ Está en la lista de pasajeros (${NOMBRE_CAT[enLista.cat]}) y viaja en este vehículo.</span>`;
+      return;
+    }
+    est.innerHTML = `<span class="mal">⚠️ No está en la lista de pasajeros: el formato pide anotar también a quien maneja.</span>
+      <span class="conductor-agregar">Agregar como:
+      <button type="button" class="sec" data-cat="OTRO">No scout</button>
+      <button type="button" class="sec" data-cat="S">Scouter</button>
+      <button type="button" class="sec" data-cat="D">Dirigente</button></span>`;
+    est.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      const nuevo = { id: nuevoId("m"), nombre: veh.conductor.trim().replace(/\s+/g, " "), cum: "", cat: b.dataset.cat, nota: `Conductor del vehículo ${S.vehiculos.indexOf(veh) + 1}` };
+      S.manuales.push(nuevo);
+      S.asignacion[nuevo.id] = veh.id;
+      renderManuales(); guardar(); actualizarResumen();
+    }));
+  });
+  return prob;
 }
 
 function avisos(lista) {
@@ -408,11 +593,18 @@ function avisos(lista) {
     if (cap && cap < lista.length) out.push(`La capacidad de los vehículos (${cap}) es menor que el número de pasajeros (${lista.length}).`);
   }
   if (S.scouts.length && !S.tieneEstatus) out.push("Tu Excel no tiene columna de estatus: revisa a mano que nadie tenga el registro vencido.");
+  if (usaParticular()) {
+    const prob = problemasVehiculos(lista);
+    S.vehiculos.forEach((veh, i) => { if (prob[veh.id]?.length) out.push(`${nombreVehiculo(veh, i)}: ${prob[veh.id].join("; ")}.`); });
+    const sin = lista.filter((p) => !p.vehId).length;
+    if (sin) out.push(`${sin} ${sin === 1 ? "pasajero no tiene" : "pasajeros no tienen"} vehículo asignado (paso 5).`);
+  }
   return out;
 }
 
 function actualizarResumen() {
   const lista = pasajeros();
+  if (S.medios.includes("particular")) sincronizarConductores(lista);
   const c = conteos(lista);
   const celdas = [["Manada", c.ML], ["Tropa", c.TS], ["Comunidad", c.CC], ["Clan", c.CR],
     ["Scouters", c.S], ["Dirigentes", c.D], ["No scouts", c.OTRO], ["Jóvenes", c.jovenes, "tot"], ["Adultos", c.adultos, "tot"], ["Total", c.total, "tot"]];
@@ -421,6 +613,9 @@ function actualizarResumen() {
   $("lista-pasajeros").innerHTML = lista.map((p) =>
     `<li>${escapar(p.nombre)} <small>${escapar(p.cum || "")} · ${p.cat}</small></li>`).join("");
   $("avisos").innerHTML = avisos(lista).map((a) => `<li>${escapar(a)}</li>`).join("");
+  renderAsignacion();
+  pintarEstadoVehiculos(lista);
+  $("personas-lista").innerHTML = lista.map((p) => `<option value="${escapar(p.nombre)}"></option>`).join("");
   pintarEstadoAnexos();
 }
 
@@ -482,7 +677,7 @@ function nombreArchivo() {
 
 async function generar() {
   if (!(S.evento.nombre || "").trim()) throw new Error("Escribe al menos el nombre del evento (paso 1).");
-  const blob = await generarProtocoloDocx(plantillaBytes(), datosParaDocumento(), pasajeros(), await anexosParaDocumento());
+  const blob = await generarProtocoloDocx(plantillaBytes(), datosParaDocumento(), pasajerosParaDocumento(), await anexosParaDocumento());
   return new File([blob], nombreArchivo(), { type: blob.type });
 }
 
@@ -533,7 +728,12 @@ async function iniciar() {
   renderManuales();
   actualizarResumen();
 
-  $("agregar-vehiculo").addEventListener("click", () => { S.vehiculos.push({}); renderVehiculos(); guardar(); });
+  $("agregar-vehiculo").addEventListener("click", () => { S.vehiculos.push({}); renderVehiculos(); guardar(); actualizarResumen(); });
+  $("repartir").addEventListener("click", repartirAutomatico);
+  $("quitar-asignaciones").addEventListener("click", () => {
+    if (!confirm("¿Quitar el vehículo asignado a todos los pasajeros? (los conductores se quedan en su vehículo)")) return;
+    S.asignacion = {}; guardar(); actualizarResumen();
+  });
   $("archivo").addEventListener("change", (e) => cargarArchivo(e.target.files[0]));
   const zona = $("zona-subir");
   zona.addEventListener("dragover", (e) => { e.preventDefault(); zona.classList.add("arrastre"); });
@@ -548,7 +748,7 @@ async function iniciar() {
     const f = new FormData(e.target);
     const nombre = (f.get("nombre") || "").toString().trim().replace(/\s+/g, " ");
     if (!nombre) return;
-    S.manuales.push({ nombre, cum: (f.get("cum") || "").toString().trim(), cat: f.get("cat"), nota: (f.get("nota") || "").toString().trim() });
+    S.manuales.push({ id: nuevoId("m"), nombre, cum: (f.get("cum") || "").toString().trim(), cat: f.get("cat"), nota: (f.get("nota") || "").toString().trim() });
     const cat = e.target.elements.cat.value;
     e.target.reset(); e.target.elements.cat.value = cat; e.target.elements.nombre.focus();
     renderManuales(); guardar(); actualizarResumen();

@@ -197,9 +197,29 @@
     <ul id="lista-manual" class="manuales"></ul>
   </section>
 
-  <!-- 5. Resumen -->
+  <!-- 5. Pasajeros por vehículo (solo transporte particular) -->
+  <section class="card" id="sec-asignacion" hidden>
+    <h2><span class="num">5</span> Pasajeros por vehículo</h2>
+    <p class="ayuda">El formato pide la <strong>lista de pasajeros por unidad vehicular</strong>: elige en qué vehículo va cada
+      persona. Los conductores viajan en el vehículo que manejan. En el documento la lista sale agrupada por vehículo.</p>
+    <div id="cupos" class="cupos"></div>
+    <div class="barra">
+      <button type="button" id="repartir" class="prim">Repartir automáticamente a quienes no tienen vehículo</button>
+      <button type="button" id="quitar-asignaciones" class="sec">Quitar asignaciones</button>
+    </div>
+    <p id="estado-asignacion" class="estado" aria-live="polite"></p>
+    <p id="sin-asignar" class="contador"></p>
+    <div class="tabla-wrap">
+      <table class="tabla tabla-asig">
+        <thead><tr><th>Nombre</th><th>Sección</th><th>Vehículo</th></tr></thead>
+        <tbody id="tabla-asignacion"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6. Resumen -->
   <section class="card">
-    <h2><span class="num">5</span> Resumen y documento</h2>
+    <h2><span class="num">6</span> Resumen y documento</h2>
     <div id="resumen" class="resumen"></div>
     <details class="pasajeros-det">
       <summary>Ver lista de pasajeros (<span id="n-pasajeros">0</span>)</summary>
@@ -228,19 +248,23 @@
     <a href="https://github.com/Stuk/jszip">JSZip</a> (MIT) y <a href="https://github.com/mozilla/pdf.js">pdf.js</a> (Apache 2.0).</p>
 </footer>
 
+<datalist id="personas-lista"></datalist>
+<datalist id="estados-lista"><option value="Aguascalientes"></option><option value="Baja California"></option><option value="Baja California Sur"></option><option value="Campeche"></option><option value="Chiapas"></option><option value="Chihuahua"></option><option value="Ciudad de México"></option><option value="Coahuila"></option><option value="Colima"></option><option value="Durango"></option><option value="Estado de México"></option><option value="Guanajuato"></option><option value="Guerrero"></option><option value="Hidalgo"></option><option value="Jalisco"></option><option value="Michoacán"></option><option value="Morelos"></option><option value="Nayarit"></option><option value="Nuevo León"></option><option value="Oaxaca"></option><option value="Puebla"></option><option value="Querétaro"></option><option value="Quintana Roo"></option><option value="San Luis Potosí"></option><option value="Sinaloa"></option><option value="Sonora"></option><option value="Tabasco"></option><option value="Tamaulipas"></option><option value="Tlaxcala"></option><option value="Veracruz"></option><option value="Yucatán"></option><option value="Zacatecas"></option></datalist>
+
 <template id="tpl-vehiculo">
   <fieldset class="vehiculo">
     <legend>Vehículo <span class="n"></span></legend>
     <div class="grid">
       <label>Marca <input data-v="marca"></label>
       <label>Modelo <input data-v="modelo"></label>
-      <label>Año <input data-v="anio" inputmode="numeric"></label>
-      <label>Capacidad (pasajeros) <input data-v="capacidad" inputmode="numeric"></label>
+      <label>Año (modelo) <input data-v="anio" inputmode="numeric" maxlength="4" placeholder="Ej. 2018"></label>
+      <label>Capacidad (pasajeros, incluye al conductor) <input data-v="capacidad" inputmode="numeric" maxlength="2" placeholder="Ej. 5"></label>
       <label>Placas <input data-v="placas"></label>
       <label>Color <input data-v="color"></label>
-      <label class="span2">Nombre del conductor <input data-v="conductor"></label>
+      <label class="span2">Nombre del conductor <input data-v="conductor" list="personas-lista" autocomplete="off" placeholder="Escribe o elige de la lista de pasajeros"></label>
+      <p class="span2 conductor-estado"></p>
       <label>Número de licencia <input data-v="licencia"></label>
-      <label>Licencia expedida por <input data-v="expedida" placeholder="Ej. Aguascalientes"></label>
+      <label>Licencia expedida por <input data-v="expedida" list="estados-lista" placeholder="Ej. Aguascalientes"></label>
       <label class="span2">Número de póliza del seguro del auto <input data-v="poliza"></label>
     </div>
     <p class="ayuda"><strong>¿Tienes en tu poder…?</strong> Adjunta la foto o el PDF de cada documento: se integra como anexo al final del protocolo.</p>
@@ -249,6 +273,7 @@
       <div class="sino" data-v="chkLicencia">Copia de licencia del conductor</div>
       <div class="sino" data-v="chkTarjeta">Copia de tarjeta de circulación</div>
     </div>
+    <p class="veh-estado"></p>
     <button type="button" class="quitar sec">Quitar vehículo</button>
   </fieldset>
 </template>
